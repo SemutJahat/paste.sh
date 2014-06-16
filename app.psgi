@@ -1,4 +1,6 @@
 package PasteSh;
+use Encode;
+use HTML::Entities;
 use JSON;
 use Plack::Request;
 use Scalar::Util qw(blessed);
@@ -22,6 +24,11 @@ sub _error {
   return [ $code,
     [ 'Content-Type' => 'text/plain', @common_headers ],
     [ $message . "\n" ] ];
+}
+
+sub _new_public_id {
+  my @i = ('A', 'Z', 'a' .. 'z', 0 .. 9);
+  "p" . join "", map $i[rand @i], 1 .. 6;
 }
 
 sub dispatch_request {
@@ -66,8 +73,10 @@ sub dispatch_request {
       return _error('Not found', 404);
     }
 
+    my $public = exists $data->{public} && $data->{public};
+
     my $content = $data->{content};
-    $content =~ s/\G(.{65})/$1\n/g;
+    $content =~ s/\G(.{65})/$1\n/g unless $public;
 
     return [ 200, [
         'Content-type' => 'text/plain',
@@ -75,6 +84,33 @@ sub dispatch_request {
       ], [
         $data->{serverkey} . "\n" . $content . "\n"
       ] ];
+  },
+  sub (PUT + /new-public) {
+    my($self, $post) = @_;
+    my $req = Plack::Request->new($env);
+    my $content = decode_utf8($req->content);
+
+    if(length $content > (640 * 1024)) {
+      return _error("Content too large", 413);
+    }
+
+    my $path = _new_public_id();
+    while($data{$path}) {
+      $path = _new_public_id();
+    }
+
+    $data{$path} = encode_json {
+      content => $content,
+      timestamp => time,
+      serverkey => "",
+      public => 1,
+    };
+
+    [ 302,
+      [ 'Content-type', 'text/plain', @common_headers,
+        Location => "https://paste.sh/$path" ],
+      [ "Saved " . length($content) . " bytes.\nhttps://paste.sh/$path\n" ]
+    ];
   },
   sub (GET + /**) {
     my($self, $path) = @_;
@@ -89,10 +125,15 @@ sub dispatch_request {
 
     open my $fh, "<", "paste.html" or die $!;
     my $template = join "", <$fh>;
-    my $public = $path =~ /^p.{8}/;
+    my $public = $data->{public} || $path =~ /^p.{8}/;
 
+    $template =~ s/\{\{public\}\}/$data->{public} ? "1" : ""/e;
     $template =~ s/\{\{encrypted\}\}/$public ? "" : "encrypted"/e;
-    $template =~ s/\{\{content\}\}/$data->{content}/;
+    if ($data->{public}) {
+      $template =~ s{(<textarea[^>]+>).*?(</textarea>)}{"$1" . encode_entities(decode_utf8($data->{content})) . "$2"}e;
+    } else {
+      $template =~ s/\{\{content\}\}/$data->{content}/;
+    }
     $template =~ s/\{\{serverkey\}\}/
       to_json($data->{serverkey} || "", { allow_nonref => 1 })/e;
     $template =~ s/\{\{editable\}\}/

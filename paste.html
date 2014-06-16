@@ -16,6 +16,7 @@
 
 var content = '{{content}}';
 var editable = '{{editable}}';
+var public = '{{public}}';
 var serverkey = {{serverkey}};
 
 var cmd = false;
@@ -47,19 +48,21 @@ onload = function() {
     }
   }
 
-  if(!serverkey) {
+  if(!public && !serverkey) {
     textarea.select();
     clearOnTouch = true;
   } else {
-    try {
-      paste.text = textarea.value = decrypt(getKey(), content);
-    } catch(e) {
-      textarea.value = "Decryption failed (" + e + ")";
-      editable = false;
-    }
-    if(!textarea.value && content) {
-      textarea.value = "Decryption failed";
-      editable = false;
+    if (!public) {
+      try {
+        paste.text = textarea.value = decrypt(getKey(), content);
+      } catch(e) {
+        textarea.value = "Decryption failed (" + e + ")";
+        editable = false;
+      }
+      if(!textarea.value && content) {
+        textarea.value = "Decryption failed";
+        editable = false;
+      }
     }
     textarea.focus();
     // Firefox likes to scroll to the end, tell it not to
@@ -309,6 +312,6 @@ function rawme(l) {
 </noscript>
 <textarea id=x>This is an encrypted paste site. Simply type or paste code here and share the URL.</textarea>
 <div id="command"><input type="text" id="cmd" value=":"></div>
-<div id="controls"><span id="status"></span> &nbsp;&nbsp; <a href="#raw" oncontextmenu='rawme(this)' onclick='alert("This will show the unencrypted data in the location bar (base64 encoded). Only use this for saving locally, do not share the data: URL."); rawme(this)'>raw</a> &bull; <a href="/">new</a> &bull; <a href="/about">about</a></div>
+<div id="controls"><span id="status"></span> &nbsp;&nbsp; <a href="#raw" oncontextmenu='rawme(this)' onclick='if(!public)alert("This will show the unencrypted data in the location bar (base64 encoded). Only use this for saving locally, do not share the data: URL."); rawme(this)'>raw</a> &bull; <a href="/">new</a> &bull; <a href="/about">about</a></div>
 </body>
 </html>

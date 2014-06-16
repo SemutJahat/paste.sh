@@ -51,7 +51,23 @@ writekey() {
   tmpfd "${id}${serverkey}${clientkey}${HOST}" 3
 }
 
+public() {
+  local cmd arg
+  cmd="$1"
+  arg="$2"
+
+  file=$(mktemp -t $TMPTMPL)
+  trap 'rm -f "${file}"' EXIT
+  $cmd "$arg" > "${file}"
+  curl -sS -0 -T "${file}" "$HOST/new-public"
+}
+
 encrypt() {
+  if [[ $public == 1 ]]; then
+    public "$@"
+    return
+  fi
+
   local cmd arg
   cmd="$1"
   arg="$2"
@@ -66,10 +82,6 @@ encrypt() {
   # Generate client key (nothing stopping you changing this, this seemed like a
   # reasonable trade off; 144 bits)
   clientkey="$(randbase64 18)"
-  if [[ $public == 1 ]]; then
-    clientkey=
-    id="p${id}"
-  fi
 
   file=$(mktemp -t $TMPTMPL)
   trap 'rm -f "${file}"' EXIT
@@ -100,10 +112,15 @@ decrypt() {
   trap 'rm -f "${tmpfile}"' EXIT
   curl -fsS -o "${tmpfile}" "${url}.txt" || exit $?
   serverkey=$(head -n1 "${tmpfile}")
-  writekey
-  tail -n +2 "${tmpfile}" | \
-    openssl enc -d -aes-256-cbc -md sha512 -pass fd:3 -base64
-  exit $?
+  if [[ $serverkey == "" ]]; then
+    # Public
+    tail -n +2 "${tmpfile}"
+  else
+    writekey
+    tail -n +2 "${tmpfile}" | \
+      openssl enc -d -aes-256-cbc -md sha512 -pass fd:3 -base64
+    exit $?
+  fi
 }
 
 
