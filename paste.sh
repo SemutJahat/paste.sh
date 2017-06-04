@@ -1,5 +1,5 @@
 #!/bin/bash
-# Client for paste.sh - https://paste.sh/client
+# Client for paste.sh - https://paste.teamwiki.de/client
 #
 # Install:
 #   cd ~/bin
@@ -19,10 +19,10 @@
 #     $ paste.sh -p [same usage as above]
 #
 #   Print paste:
-#     $ paste.sh 'https://paste.sh/xxxxx#xxxx'
+#     $ paste.sh 'https://paste.teamwiki.de/xxxxx#xxxx'
 #     (You need to quote or escape the URL due to the #)
 
-HOST=https://paste.sh
+HOST=https://paste.teamwiki.de
 TMPTMPL=paste.XXXXXXXX
 
 
