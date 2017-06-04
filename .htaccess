@@ -1,0 +1,7 @@
+
+RewriteEngine on
+RewriteRule ^new$ /index.php?mode=new [L,QSA]
+RewriteRule ^([a-zA-Z0-9-]+)\.txt$ /index.php?mode=txt&id=$1 [L,QSA]
+RewriteRule ^([a-zA-Z0-9-]+)$ /index.php?mode=paste&id=$1 [L,QSA]
+
+
